@@ -1,0 +1,42 @@
+#!/bin/bash
+# V1.0 Show some relevant information about an SSL certificate file
+# V2.0 Show relevant information about an SSL certificate file or a remote server
+
+VERSION=2.0
+TMPFILES=/tmp/cert
+
+if [ "$#" -ne 1 ]; then
+  echo -e $(basename $0)" V${VERSION}\nUsage: $0 <cert-file> | <server-name:port>"
+  exit
+fi
+
+# Connect to server:port if we have a ":" and store the cert info in a tmp file
+if [[ "$1" == *":"* ]]; then
+  echo | openssl s_client -showcerts -connect "$1" > ${TMPFILES} 2>/dev/null
+  # cat ${TMPFILES}
+  INFILE=${TMPFILES}
+else
+  INFILE=$1
+fi
+
+if [ ! -r ${INFILE} ]; then
+  echo "The file ${INFILE} does not exist"
+  exit
+fi
+
+# Split the file into one or more separate certificates
+csplit -s -f ${TMPFILES} ${INFILE} '/-----BEGIN CERTIFICATE-----/' '{*}'
+
+if [ -r ${TMPFILES}01 ]; then
+  for FILE in ${TMPFILES}0[1-9]; do
+    if [ ${FILE} != ${TMPFILES}01 ]; then echo; fi
+    openssl x509 -in ${FILE} -subject -issuer -dates -extensions subjectAltName,keyUsage,extendedKeyUsage -noout | sed -e 's/^/# /'
+  done
+else
+  echo "$1 - no certificate found"
+fi
+
+if [ -r ${TMPFILES} ]; then
+  rm ${TMPFILES}
+fi
+rm ${TMPFILES}??
