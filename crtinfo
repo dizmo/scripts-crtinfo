@@ -1,8 +1,9 @@
 #!/bin/bash
 # V1.0 Show some relevant information about an SSL certificate file
 # V2.0 Show relevant information about an SSL certificate file or a remote server
+# V2.1 Show alternative names too
 
-VERSION=2.0
+VERSION=2.1
 TMPFILES=/tmp/cert
 
 if [ "$#" -ne 1 ]; then
@@ -30,7 +31,8 @@ csplit -s -f ${TMPFILES} ${INFILE} '/-----BEGIN CERTIFICATE-----/' '{*}'
 if [ -r ${TMPFILES}01 ]; then
   for FILE in ${TMPFILES}0[1-9]; do
     if [ ${FILE} != ${TMPFILES}01 ]; then echo; fi
-    openssl x509 -in ${FILE} -subject -issuer -dates -extensions subjectAltName,keyUsage,extendedKeyUsage -noout | sed -e 's/^/# /'
+    openssl x509 -text -noout -in ${FILE} | grep -E '(Subject:|DNS:)' | sed -e 's/^\s*/# /'
+    openssl x509 -text -noout -in ${FILE} | grep -E '(Issuer:|Not Before:|Not After :)' | sed -e 's/^\s*/# /'
   done
 else
   echo "$1 - no certificate found"
